@@ -88,17 +88,17 @@ metadata:
     app: multus
 data:
   #"clusterNetwork": "k8s-pod-network",
-  cni-conf-canal-primary.json: |
+  cni-conf-calico-primary.json: |
     {
-      "name": "multusi-cni-network",
+      "name": "multus-cni-network",
       "cniVersion": "0.3.1",
       "plugins": [
         {
           "cniVersion": "0.3.1",
           "name": "multus-cni-network",
           "type": "multus",
-          "kubeconfig": "/etc/kubernetes/cni/net.d/multus.d/multus.kubeconfig",
-          "confDir": "/etc/kubernetes/cni/net.d",
+          "kubeconfig": "/etc/cni/net.d/multus.d/multus.kubeconfig",
+          "confDir": "/etc/cni/net.d",
           "clusterNetwork": "k8s-pod-network",
           "defaultNetworks": ["cilium"],
           "systemNamespaces": [""]
@@ -107,37 +107,47 @@ data:
     }
   cni-conf-cilium-primary.json: |
     {
-      "name": "multusi-cni-network",
+      "name": "multus-cni-network",
       "cniVersion": "0.3.1",
       "plugins": [
         {
           "cniVersion": "0.3.1",
           "name": "multus-cni-network",
           "type": "multus",
-          "kubeconfig": "/etc/kubernetes/cni/net.d/multus.d/multus.kubeconfig",
-          "confDir": "/etc/kubernetes/cni/net.d",
+          "kubeconfig": "/etc/cni/net.d/multus.d/multus.kubeconfig",
+          "confDir": "/etc/cni/net.d",
           "clusterNetwork": "cilium",
-          "defaultNetworks": ["cbr0"],
+          "defaultNetworks": ["k8s-pod-network"],
           "systemNamespaces": [""]
         }
       ]
     }
-  cni-conf-flannel.json: |
+  cni-conf-calico.json: |
    {
-     "name": "cbr0",
+     "name": "k8s-pod-network",
+     "cniVersion": "0.3.1",
      "plugins": [
        {
-         "type": "flannel",
-         "delegate": {
-           "hairpinMode": true,
-           "isDefaultGateway": true
+         "type": "calico",
+         "log_level": "info",
+         "log_file_path": "/var/log/calico/cni/cni.log",
+         "datastore_type": "kubernetes",
+         "nodename": "ip-172-20-117-168.ec2.internal",
+         "mtu": 0,
+         "ipam": {
+           "type": "calico-ipam"
+         },
+         "policy": {
+           "type": "k8s"
+         },
+         "kubernetes": {
+           "kubeconfig": "/etc/cni/net.d/calico-kubeconfig"
          }
        },
        {
          "type": "portmap",
-         "capabilities": {
-           "portMappings": true
-         }
+         "snat": true,
+         "capabilities": { "portMappings": true }
        },
        {
          "type": "sbr"
@@ -148,13 +158,13 @@ data:
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: kube-multus-canal
+  name: kube-multus-calico
   namespace: kube-system
   labels:
     tier: node
     app: multus
     name: multus
-    primary: canal
+    primary: calico
 spec:
   selector:
     matchLabels:
@@ -167,12 +177,12 @@ spec:
         tier: node
         app: multus
         name: multus
-        primary: canal
+        primary: calico
     spec:
       hostNetwork: true
       nodeSelector:
         kubernetes.io/arch: amd64
-        node-role.kubernetes.io/priority-canal: "true"
+        node-role.kubernetes.io/priority-calico: "true"
       tolerations:
       - operator: Exists
         effect: NoSchedule
@@ -183,7 +193,7 @@ spec:
         command:
         - "/bin/bash"
         - "-c"
-        # Set cbr on canal CNI chaining config
+        # Set cbr on calico CNI chaining config
         - "CNI_PATH='/host/etc/cni/net.d/10-calico.conflist'; CNI_CONFIG=$(cat $CNI_PATH); if [[ ! $(echo $CNI_CONFIG  | jq '.plugins | .[] | select(.type == \"sbr\")') ]]; then echo $CNI_CONFIG | jq '.plugins += [{\"type\": \"sbr\"}]' > $CNI_PATH  ; fi && cp /opt/cni/bin/* /host/opt/cni/bin"
         volumeMounts:
         - name: cni
@@ -200,7 +210,7 @@ spec:
         - "--multus-conf-file=/tmp/multus-conf/00-multus.conflist"
         - "--namespace-isolation=false"
         - "--cni-version=0.3.1"
-        - "--multus-kubeconfig-file-host=/etc/kubernetes/cni/net.d/multus.d/multus.kubeconfig"
+        - "--multus-kubeconfig-file-host=/etc/cni/net.d/multus.d/multus.kubeconfig"
         resources:
           requests:
             cpu: "100m"
@@ -220,7 +230,7 @@ spec:
       volumes:
         - name: cni
           hostPath:
-            path: /etc/kubernetes/cni/net.d
+            path: /etc/cni/net.d
         - name: cnibin
           hostPath:
             path: /opt/cni/bin
@@ -228,7 +238,7 @@ spec:
           configMap:
             name: multus-cni-config
             items:
-            - key: cni-conf-canal-primary.json
+            - key: cni-conf-calico-primary.json
               path: 00-multus.conflist
 ---
 apiVersion: apps/v1
@@ -269,13 +279,13 @@ spec:
         command:
         - "/bin/bash"
         - "-c"
-        - "cp /opt/cni/bin/* /host/opt/cni/bin && cat /tmp/99-flannel.conflist > /host/etc/cni/net.d/99-flannel.conflist"
+        - "cp /opt/cni/bin/* /host/opt/cni/bin && cat /tmp/99-flannel.conflist > /host/etc/cni/net.d/99-calico.conflist"
         volumeMounts:
         - name: cni
           mountPath: /host/etc/cni/net.d
         - name: cnibin
           mountPath: /host/opt/cni/bin
-        - name: flannel-cfg
+        - name: calico-cfg
           mountPath: /tmp
         securityContext:
           privileged: true
@@ -287,7 +297,7 @@ spec:
         - "--multus-conf-file=/tmp/multus-conf/00-multus.conflist"
         - "--namespace-isolation=false"
         - "--cni-version=0.3.1"
-        - "--multus-kubeconfig-file-host=/etc/kubernetes/cni/net.d/multus.d/multus.kubeconfig"
+        - "--multus-kubeconfig-file-host=/etc/cni/net.d/multus.d/multus.kubeconfig"
         resources:
           requests:
             cpu: "100m"
@@ -307,7 +317,7 @@ spec:
       volumes:
         - name: cni
           hostPath:
-            path: /etc/kubernetes/cni/net.d
+            path: /etc/cni/net.d
         - name: cnibin
           hostPath:
             path: /opt/cni/bin
@@ -317,9 +327,9 @@ spec:
             items:
             - key: cni-conf-cilium-primary.json
               path: 00-multus.conflist
-        - name: flannel-cfg
+        - name: calico-cfg
           configMap:
             name: multus-cni-config
             items:
-            - key: cni-conf-flannel.json
-              path: 99-flannel.conflist
+            - key: cni-conf-calico.json
+              path: 99-calico.conflist

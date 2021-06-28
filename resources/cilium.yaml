@@ -502,7 +502,7 @@ spec:
       serviceAccount: cilium
       serviceAccountName: cilium
       nodeSelector:
-        node-role.kubernetes.io/canal-cilium: "true"
+        node-role.kubernetes.io/calico-cilium: "true"
       terminationGracePeriodSeconds: 1
       tolerations:
       - operator: Exists
@@ -524,7 +524,7 @@ spec:
         name: cni-path
         # To install cilium cni configuration in the host
       - hostPath:
-          path: /etc/kubernetes/cni/net.d
+          path: /etc/cni/net.d
           type: DirectoryOrCreate
         name: etc-cni-netd
         # To be able to load kernel modules

@@ -7,7 +7,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/jetstack/cni-migration/pkg/config"
+	"github.com/timescale/cni-migration/pkg/config"
 )
 
 func (f *Factory) RollNode(dryrun bool, nodeName string, watchResources *config.Resources) error {
@@ -99,4 +99,14 @@ func (f *Factory) DeletePodsOnNode(nodeName string) error {
 	}
 
 	return nil
+}
+
+func (f *Factory) GetMasterNodes() (*corev1.NodeList, error) {
+	nodes, err := f.client.CoreV1().Nodes().List(f.ctx, metav1.ListOptions{
+		LabelSelector: "kubernetes.io/role=master",
+	})
+	if err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }

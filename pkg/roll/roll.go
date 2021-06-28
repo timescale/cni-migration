@@ -7,9 +7,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/jetstack/cni-migration/pkg"
-	"github.com/jetstack/cni-migration/pkg/config"
-	"github.com/jetstack/cni-migration/pkg/util"
+	"github.com/timescale/cni-migration/pkg"
+	"github.com/timescale/cni-migration/pkg/config"
+	"github.com/timescale/cni-migration/pkg/util"
 )
 
 const (
@@ -41,7 +41,7 @@ func New(ctx context.Context, config *config.Config) pkg.Step {
 // Ready ensures that
 // - All nodes have the 'rolled' label
 func (r *Roll) Ready() (bool, error) {
-	nodes, err := r.client.CoreV1().Nodes().List(r.ctx, metav1.ListOptions{})
+	nodes, err := r.factory.GetMasterNodes()
 	if err != nil {
 		return false, err
 	}
@@ -66,7 +66,7 @@ func (r *Roll) Run(dryrun bool) error {
 	if !flagEnabled {
 		r.log.Info("rolling all nodes...")
 
-		nodesList, err := r.client.CoreV1().Nodes().List(r.ctx, metav1.ListOptions{})
+		nodesList, err := r.factory.GetMasterNodes()
 		if err != nil {
 			return err
 		}
@@ -81,7 +81,6 @@ func (r *Roll) Run(dryrun bool) error {
 			if err := r.node(dryrun, node.Name); err != nil {
 				return err
 			}
-
 		}
 	}
 

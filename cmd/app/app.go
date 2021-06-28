@@ -13,14 +13,14 @@ import (
 	cliflag "k8s.io/component-base/cli/flag"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 
-	"github.com/jetstack/cni-migration/pkg"
-	"github.com/jetstack/cni-migration/pkg/cleanup"
-	"github.com/jetstack/cni-migration/pkg/config"
-	"github.com/jetstack/cni-migration/pkg/migrate"
-	"github.com/jetstack/cni-migration/pkg/preflight"
-	"github.com/jetstack/cni-migration/pkg/prepare"
-	"github.com/jetstack/cni-migration/pkg/priority"
-	"github.com/jetstack/cni-migration/pkg/roll"
+	"github.com/timescale/cni-migration/pkg"
+	"github.com/timescale/cni-migration/pkg/cleanup"
+	"github.com/timescale/cni-migration/pkg/config"
+	"github.com/timescale/cni-migration/pkg/migrate"
+	"github.com/timescale/cni-migration/pkg/preflight"
+	"github.com/timescale/cni-migration/pkg/prepare"
+	"github.com/timescale/cni-migration/pkg/priority"
+	"github.com/timescale/cni-migration/pkg/roll"
 )
 
 type NewFunc func(context.Context, *config.Config) pkg.Step

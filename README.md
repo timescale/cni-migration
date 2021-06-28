@@ -1,3 +1,6 @@
+cni-migration
+=============
+
 cni-migration is a CLI tool for migrating a Kubernetes cluster's CNI solution
 from Flannel (Canal) to Cilium. The tool works by running both CNIs at the same
 time using [multus-cni](https://github.com/intel/multus-cni/). All pods are
@@ -55,7 +58,7 @@ bi-directional network connectivity across cluster.
 3. This step will reverse the order of priority of CNIs, so that Cilium becomes
    the primary Pod IP, with an extra Flannel network interface attached.
 
-- Relabel and roll all the nodes on the on the cluster with the label
+- Relabel and roll all the nodes on the cluster with the label
   `node-role.kubernetes/cni-priority-cilium=true`. This will change the priority
    of the CNI on each cluster to Cilium and have each Pod IP be in Cilium's range.
 - Check knet-stress connectively after every node roll.

@@ -1,7 +1,7 @@
 package util
 
 import (
-	"github.com/jetstack/cni-migration/pkg/config"
+	"github.com/timescale/cni-migration/pkg/config"
 )
 
 func (f *Factory) WaitAllReady(resources *config.Resources) error {
@@ -32,17 +32,17 @@ func (f *Factory) WaitAllReady(resources *config.Resources) error {
 	return nil
 }
 
-// waitDeploymentReadynamespace will wait for a all pods in a Deployment to become ready
+// waitDeploymentReadynamespace will wait for all pods in a Deployment to become ready
 func (f *Factory) waitDeploymentReady(namespace, name string) error {
 	return f.waitReady("deployment", name, namespace)
 }
 
-// waitDaemonSetReadynamespace will wait for a all pods in a DaemonSet to become ready
+// waitDaemonSetReadynamespace will wait for all pods in a DaemonSet to become ready
 func (f *Factory) WaitDaemonSetReady(namespace, name string) error {
 	return f.waitReady("daemonset", name, namespace)
 }
 
-// waitStatefulSetReadynamespace will wait for a all pods in a StatefulSet to become ready
+// waitStatefulSetReadynamespace will wait for all pods in a StatefulSet to become ready
 func (f *Factory) waitStatefulSetReady(namespace, name string) error {
 	return f.waitReady("statefulset", name, namespace)
 }

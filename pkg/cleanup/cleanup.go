@@ -7,9 +7,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/jetstack/cni-migration/pkg"
-	"github.com/jetstack/cni-migration/pkg/config"
-	"github.com/jetstack/cni-migration/pkg/util"
+	"github.com/timescale/cni-migration/pkg"
+	"github.com/timescale/cni-migration/pkg/config"
+	"github.com/timescale/cni-migration/pkg/util"
 )
 
 var _ pkg.Step = &CleanUp{}
