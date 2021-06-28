@@ -1,7 +1,7 @@
 # Node labels to use to check the status of each stage
 labels:
-  canal-cilium: node-role.kubernetes.io/canal-cilium
-  cni-priority-canal: node-role.kubernetes.io/priority-canal
+  calico-cilium: node-role.kubernetes.io/calico-cilium
+  cni-priority-calico: node-role.kubernetes.io/priority-calico
   cni-priority-cilium: node-role.kubernetes.io/priority-cilium
   rolled: node-role.kubernetes.io/rolled
   cilium: node-role.kubernetes.io/cilium
@@ -28,13 +28,13 @@ preflightResources:
 watchedResources:
   daemonsets:
     kube-system:
-    - canal
+    - calico-node
     - cilium
     - cilium-migrated
-    - kube-multus-canal
+    - kube-multus-calico
     - kube-multus-cilium
-    - kube-controller-manager
-    - kube-scheduler
+#    - kube-controller-manager
+#    - kube-scheduler
     knet-stress:
     - knet-stress
     - knet-stress-2
@@ -45,9 +45,9 @@ watchedResources:
 cleanUpResources:
   daemonsets:
     kube-system:
-    - canal
+    - calico-node
     - cilium
-    - kube-multus-canal
+    - kube-multus-calico
     - kube-multus-cilium
     knet-stress:
     - knet-stress

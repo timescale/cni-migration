@@ -11,9 +11,9 @@ import (
 )
 
 type Labels struct {
-	CanalCilium       string `yaml:"canal-cilium"`
+	CalicoCilium      string `yaml:"calico-cilium"`
 	Rolled            string `yaml:"rolled"`
-	CNIPriorityCanal  string `yaml:"cni-priority-canal"`
+	CNIPriorityCalico string `yaml:"cni-priority-calico"`
 	CNIPriorityCilium string `yaml:"cni-priority-cilium"`
 
 	Cilium   string `yaml:"cilium"`

@@ -7,9 +7,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/jetstack/cni-migration/pkg"
-	"github.com/jetstack/cni-migration/pkg/config"
-	"github.com/jetstack/cni-migration/pkg/util"
+	"github.com/timescale/cni-migration/pkg"
+	"github.com/timescale/cni-migration/pkg/config"
+	"github.com/timescale/cni-migration/pkg/util"
 )
 
 var _ pkg.Step = &Prepare{}
@@ -37,9 +37,9 @@ func New(ctx context.Context, config *config.Config) pkg.Step {
 // Ready ensures that
 // - Nodes have correct labels
 // - The required resources exist
-// - Canal DaemonSet has been patched
+// - Calico DaemonSet has been patched
 func (p *Prepare) Ready() (bool, error) {
-	nodes, err := p.client.CoreV1().Nodes().List(p.ctx, metav1.ListOptions{})
+	nodes, err := p.factory.GetMasterNodes()
 	if err != nil {
 		return false, err
 	}
@@ -50,7 +50,7 @@ func (p *Prepare) Ready() (bool, error) {
 		}
 	}
 
-	patched, err := p.canalIsPatched()
+	patched, err := p.calicoIsPatched()
 	if err != nil || !patched {
 		return false, err
 	}
@@ -68,11 +68,11 @@ func (p *Prepare) Ready() (bool, error) {
 // Run will ensure that
 // - Node have correct labels
 // - The required resources exist
-// - Canal DaemonSet has been patched
+// - Calico DaemonSet has been patched
 func (p *Prepare) Run(dryrun bool) error {
 	p.log.Infof("preparing migration...")
 
-	nodes, err := p.client.CoreV1().Nodes().List(p.ctx, metav1.ListOptions{})
+	nodes, err := p.factory.GetMasterNodes()
 	if err != nil {
 		return err
 	}
@@ -88,8 +88,8 @@ func (p *Prepare) Run(dryrun bool) error {
 			delete(n.Labels, p.config.Labels.Cilium)
 			delete(n.Labels, p.config.Labels.CNIPriorityCilium)
 
-			n.Labels[p.config.Labels.CanalCilium] = p.config.Labels.Value
-			n.Labels[p.config.Labels.CNIPriorityCanal] = p.config.Labels.Value
+			n.Labels[p.config.Labels.CalicoCilium] = p.config.Labels.Value
+			n.Labels[p.config.Labels.CNIPriorityCalico] = p.config.Labels.Value
 
 			_, err := p.client.CoreV1().Nodes().Update(p.ctx, n.DeepCopy(), metav1.UpdateOptions{})
 			if err != nil {
@@ -98,17 +98,18 @@ func (p *Prepare) Run(dryrun bool) error {
 		}
 	}
 
-	patched, err := p.canalIsPatched()
+	// Idempotency. Check to see if Calico is patched. If it is, we skip patching it.
+	patched, err := p.calicoIsPatched()
 	if err != nil {
 		return err
 	}
 
 	if !patched {
-		p.log.Infof("patching canal DaemonSet with node selector %s=%s",
-			p.config.Labels.CanalCilium, p.config.Labels.Value)
+		p.log.Infof("patching calico DaemonSet with node selector %s=%s",
+			p.config.Labels.CalicoCilium, p.config.Labels.Value)
 
 		if !dryrun {
-			if err := p.patchCanal(); err != nil {
+			if err := p.patchCalico(); err != nil {
 				return err
 			}
 		}
@@ -129,7 +130,7 @@ func (p *Prepare) Run(dryrun bool) error {
 
 		p.log.Infof("creating multus resources")
 		if !dryrun {
-			if err := p.factory.CreateDaemonSet(p.config.Paths.Multus, "kube-system", "kube-multus-canal"); err != nil {
+			if err := p.factory.CreateDaemonSet(p.config.Paths.Multus, "kube-system", "kube-multus-calico"); err != nil {
 				return err
 			}
 		}
@@ -148,8 +149,8 @@ func (p *Prepare) Run(dryrun bool) error {
 	return nil
 }
 
-func (p *Prepare) patchCanal() error {
-	ds, err := p.client.AppsV1().DaemonSets("kube-system").Get(p.ctx, "canal", metav1.GetOptions{})
+func (p *Prepare) patchCalico() error {
+	ds, err := p.client.AppsV1().DaemonSets("kube-system").Get(p.ctx, "calico-node", metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -157,7 +158,7 @@ func (p *Prepare) patchCanal() error {
 	if ds.Spec.Template.Spec.NodeSelector == nil {
 		ds.Spec.Template.Spec.NodeSelector = make(map[string]string)
 	}
-	ds.Spec.Template.Spec.NodeSelector[p.config.Labels.CanalCilium] = p.config.Labels.Value
+	ds.Spec.Template.Spec.NodeSelector[p.config.Labels.CalicoCilium] = p.config.Labels.Value
 
 	_, err = p.client.AppsV1().DaemonSets("kube-system").Update(p.ctx, ds, metav1.UpdateOptions{})
 	if err != nil {
@@ -172,10 +173,10 @@ func (p *Prepare) hasRequiredLabel(labels map[string]string) bool {
 		return false
 	}
 
-	_, cclOK := labels[p.config.Labels.CanalCilium]
+	_, cclOK := labels[p.config.Labels.CalicoCilium]
 	_, clOK := labels[p.config.Labels.Cilium]
 
-	_, prioCan := labels[p.config.Labels.CNIPriorityCanal]
+	_, prioCal := labels[p.config.Labels.CNIPriorityCalico]
 	_, prioCil := labels[p.config.Labels.CNIPriorityCilium]
 	_, migrated := labels[p.config.Labels.Migrated]
 
@@ -186,7 +187,7 @@ func (p *Prepare) hasRequiredLabel(labels map[string]string) bool {
 
 	var onlyOne bool
 	for _, b := range []bool{
-		prioCan, prioCil, migrated,
+		prioCal, prioCil, migrated,
 	} {
 		if b {
 			if onlyOne {
@@ -204,8 +205,8 @@ func (p *Prepare) hasRequiredLabel(labels map[string]string) bool {
 	return true
 }
 
-func (p *Prepare) canalIsPatched() (bool, error) {
-	ds, err := p.client.AppsV1().DaemonSets("kube-system").Get(p.ctx, "canal", metav1.GetOptions{})
+func (p *Prepare) calicoIsPatched() (bool, error) {
+	ds, err := p.client.AppsV1().DaemonSets("kube-system").Get(p.ctx, "calico-node", metav1.GetOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -213,7 +214,7 @@ func (p *Prepare) canalIsPatched() (bool, error) {
 	if ds.Spec.Template.Spec.NodeSelector == nil {
 		return false, nil
 	}
-	if v, ok := ds.Spec.Template.Spec.NodeSelector[p.config.Labels.CanalCilium]; !ok || v != p.config.Labels.Value {
+	if v, ok := ds.Spec.Template.Spec.NodeSelector[p.config.Labels.CalicoCilium]; !ok || v != p.config.Labels.Value {
 		return false, nil
 	}
 

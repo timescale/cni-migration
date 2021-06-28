@@ -7,9 +7,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/jetstack/cni-migration/pkg"
-	"github.com/jetstack/cni-migration/pkg/config"
-	"github.com/jetstack/cni-migration/pkg/util"
+	"github.com/timescale/cni-migration/pkg"
+	"github.com/timescale/cni-migration/pkg/config"
+	"github.com/timescale/cni-migration/pkg/util"
 )
 
 const (
@@ -41,7 +41,7 @@ func New(ctx context.Context, config *config.Config) pkg.Step {
 // Ready ensures that
 // - All nodes have the revered cni-priority-cilium label
 func (p *Priority) Ready() (bool, error) {
-	nodes, err := p.client.CoreV1().Nodes().List(p.ctx, metav1.ListOptions{})
+	nodes, err := p.factory.GetMasterNodes()
 	if err != nil {
 		return false, err
 	}
@@ -72,7 +72,7 @@ func (p *Priority) Run(dryrun bool) error {
 	if !flagEnabled {
 		p.log.Info("reversing priority of CNI to cilium on all nodes...")
 
-		nodesList, err := p.client.CoreV1().Nodes().List(p.ctx, metav1.ListOptions{})
+		nodesList, err := p.factory.GetMasterNodes()
 		if err != nil {
 			return err
 		}
@@ -103,7 +103,7 @@ func (p *Priority) node(dryrun bool, name string) error {
 		if node.Labels == nil {
 			node.Labels = make(map[string]string)
 		}
-		delete(node.Labels, p.config.Labels.CNIPriorityCanal)
+		delete(node.Labels, p.config.Labels.CNIPriorityCalico)
 		node.Labels[p.config.Labels.CNIPriorityCilium] = p.config.Labels.Value
 
 		_, err = p.client.CoreV1().Nodes().Update(p.ctx, node, metav1.UpdateOptions{})

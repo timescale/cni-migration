@@ -8,9 +8,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/jetstack/cni-migration/pkg"
-	"github.com/jetstack/cni-migration/pkg/config"
-	"github.com/jetstack/cni-migration/pkg/util"
+	"github.com/timescale/cni-migration/pkg"
+	"github.com/timescale/cni-migration/pkg/config"
+	"github.com/timescale/cni-migration/pkg/util"
 )
 
 const (
@@ -42,7 +42,7 @@ func New(ctx context.Context, config *config.Config) pkg.Step {
 // Ready ensures that
 // - All nodes have the 'migrated' label
 func (m *Migrate) Ready() (bool, error) {
-	nodes, err := m.client.CoreV1().Nodes().List(m.ctx, metav1.ListOptions{})
+	nodes, err := m.factory.GetMasterNodes()
 	if err != nil {
 		return false, err
 	}
@@ -67,7 +67,7 @@ func (m *Migrate) Run(dryrun bool) error {
 	if !flagEnabled {
 		m.log.Info("migrating all nodes...")
 
-		nodesList, err := m.client.CoreV1().Nodes().List(m.ctx, metav1.ListOptions{})
+		nodesList, err := m.factory.GetMasterNodes()
 		if err != nil {
 			return err
 		}
@@ -219,7 +219,7 @@ func (m *Migrate) addCiliumTaint(nodeName string) error {
 	}
 
 	// Change label of node
-	delete(node.Labels, m.config.Labels.CanalCilium)
+	delete(node.Labels, m.config.Labels.CalicoCilium)
 	node.Labels[m.config.Labels.Cilium] = m.config.Labels.Value
 
 	node, err = m.client.CoreV1().Nodes().Update(m.ctx, node, metav1.UpdateOptions{})
@@ -238,7 +238,7 @@ func (m *Migrate) setNodeMigratedLabel(nodeName string) error {
 
 	// Set migrated label
 	delete(node.Labels, m.config.Labels.CNIPriorityCilium)
-	delete(node.Labels, m.config.Labels.CanalCilium)
+	delete(node.Labels, m.config.Labels.CalicoCilium)
 	node.Labels[m.config.Labels.Migrated] = m.config.Labels.Value
 
 	_, err = m.client.CoreV1().Nodes().Update(m.ctx, node, metav1.UpdateOptions{})
